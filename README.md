@@ -12,9 +12,9 @@ It creates Java template files. The Java files will be created in the `resources
 
 ### fetch_inputs.py
 ```sh
-python src/main/resources/fetch_inputs.py 2024 1 "<your_session_cookie_here>" --output "./inputs/day01.txt"
+python src/main/resources/fetch_inputs.py 1 --output "./inputs/day01.txt"
 ```
-This script fetches the input for the specified day from the Advent of Code website. You need to supply your "session" cookie from a logged-in session.
+This script fetches the input for the specified day from the Advent of Code website. You need to add your "session" cookie from a logged-in AOC session as an environment variable "AOC_SESSION_COOKIE".
 
 ### create_empty_input_files.py
 ```sh
