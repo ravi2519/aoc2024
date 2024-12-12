@@ -35,11 +35,14 @@ public class AdventOfCode {
         String className = String.format("in.ravir.day%02d.Day%02d", today, today);
 
         try {
+            long startTime = System.currentTimeMillis();
             Class<?> clazz = Class.forName(className);
             Object instance = clazz.getDeclaredConstructor().newInstance();
             clazz.getMethod("setInputLines", List.class).invoke(instance, getInputLines(today));
             clazz.getMethod("part1").invoke(instance);
             clazz.getMethod("part2").invoke(instance);
+            long endTime = System.currentTimeMillis();
+            log.info("Time taken: {}ms", endTime - startTime);
         } catch (Exception e) {
             log.warn("No code for today {}", today, e);
         }
