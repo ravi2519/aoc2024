@@ -3,8 +3,13 @@ package in.ravir.day16;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -13,106 +18,150 @@ public class Day16 {
 
     @Setter
     private List<String> inputLines;
-
-    private String[][] map;
-    private int[] start = new int[2];
-    private int[] end = new int[2];
-    private int rows;
-    private int cols;
-
-    private List<String> visited = new ArrayList<>();
-
-    private static final int[][] DIRS = {
-        {1, 0, 1000},   // Right
-        {0, 1, 1},   // Down
-        {-1, 0, 1},  // Left
-        {0, -1, 1000}   // Up
-    };
+    private final Set<List<Integer>> walls = new HashSet<>();
+    private final int[] source = new int[2];
+    private final int[] target = new int[2];
+    private final int[][] dirs = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
+    private int bestCost = 0;
 
     public void part1() {
         log.info("Day16, Part 01");
-
         parseInput();
-
-        var routes = new ArrayList<Integer>();
-        for(var dir:DIRS) {
-            var newX = start[0] + dir[0];
-            var newY = start[1] + dir[1];
-
-            if(map[newX][newY].equals(".")) {
-                routes.add(visit(newX, newY, dir[2]));
-
-                var ret = visit(newX, newY, dir[2]);
-                if(ret != 0) {
-                    routes.add(ret);
-                }
-            }
-        }
-
-        log.info("Answer Part 1 {}", routes.stream().min(Integer::compareTo));
+        bestCost = traverse(source, target, walls);
+        log.info("Answer Part 1 - {}", bestCost);
     }
-
-    private int visit(int startX, int startY, int score) {
-        if(visited.contains(startX + "-" + startY)) {
-            return 0;
-        }
-
-        visited.add(startX + "-" + startY);
-
-        if(startX == end[0] && startY == end[1]) {
-            return score;
-        }
-
-        if(map[startX][startY].equals("#")) {
-            return 0;
-        }
-
-        var minScore = Integer.MAX_VALUE;
-        for(var dir:DIRS) {
-            var newX = startX + dir[0];
-            var newY = startY + dir[1];
-
-            if(map[newX][newY].equals(".")) {
-                var ret = visit(newX, newY, score + dir[2]);
-                if(ret != 0 && ret < minScore) {
-                    minScore = ret;
-                }
-            }
-        }
-
-        if(minScore == Integer.MAX_VALUE) {
-            return 0;
-        } else {
-            return minScore;
-        }
-
-    }
-
-
 
     public void part2() {
         log.info("Day16, Part 02");
+        log.info("Answer Part 2 - {}", findAllPaths(source, target, bestCost, walls));
     }
 
-    private void parseInput() {
-        rows = inputLines.size();
-        cols = inputLines.get(0).length();
+    private int traverse(int[] source, int[] target, Set<List<Integer>> walls) {
+        PriorityQueue<Node> queue = new PriorityQueue<>();
+        Set<String> seen = new HashSet<>();
+        queue.offer(new Node(0, source[0], source[1], 0));
 
-        map = new String[rows][cols];
-        for (int i = 0; i < rows; i++) {
-            var line = inputLines.get(i);
-            if(line.contains("S")) {
-                start[0] = i;
-                start[1] = line.indexOf("S");
-            } 
+        while (!queue.isEmpty()) {
+            Node current = queue.poll();
+            String state = current.y + "," + current.x + "," + current.direction;
 
-            if (line.contains("E")) {
-                end[0] = i;
-                end[1] = line.indexOf("E");
+            if (seen.contains(state)) continue;
+            if (current.y == target[0] && current.x == target[1]) return current.cost;
+
+            seen.add(state);
+
+            int[] forward = {current.y + dirs[current.direction][0], current.x + dirs[current.direction][1]};
+            if (!walls.contains(Arrays.asList(forward[0], forward[1]))) {
+                queue.offer(new Node(current.cost + 1, forward[0], forward[1], current.direction));
+            }
+            queue.offer(new Node(current.cost + 1000, current.y, current.x, (current.direction + 1) % 4));
+            queue.offer(new Node(current.cost + 1000, current.y, current.x, (current.direction + 3) % 4));
+        }
+
+        return -1;
+    }
+
+    private int findAllPaths(int[] source, int[] target, int targetCost, Set<List<Integer>> walls) {
+        Map<String, Integer> bestCosts = new HashMap<>();
+        Map<String, Set<String>> links = new HashMap<>();
+        PriorityQueue<Node> queue = new PriorityQueue<>();
+
+        queue.offer(new Node(0, source[0], source[1], 0, null));
+
+        while (!queue.isEmpty()) {
+            Node current = queue.poll();
+            String state = current.y + "," + current.x + "," + current.direction;
+
+            if (current.cost > targetCost) break;
+            if (bestCosts.containsKey(state)) {
+                if (current.cost == bestCosts.get(state)) {
+                    links.get(state).add(current.prev);
+                }
+                continue;
             }
 
-            map[i] = line.split("");
+            bestCosts.put(state, current.cost);
+            links.computeIfAbsent(state, k -> new HashSet<>()).add(current.prev);
+
+            String prev = state;
+            int[] forward = {current.y + dirs[current.direction][0], current.x + dirs[current.direction][1]};
+            if (!walls.contains(Arrays.asList(forward[0], forward[1]))) {
+                queue.offer(new Node(current.cost + 1, forward[0], forward[1], current.direction, prev));
+            }
+            queue.offer(new Node(current.cost + 1000, current.y, current.x, (current.direction + 1) % 4, prev));
+            queue.offer(new Node(current.cost + 1000, current.y, current.x, (current.direction + 3) % 4, prev));
         }
+
+        // Walk backward from the target to record all tiles
+        Set<String> routes = new HashSet<>();
+        Set<List<Integer>> tiles = new HashSet<>();
+
+        for (int d = 0; d < 4; d++) {
+            walk(target[0] + "," + target[1] + "," + d, routes, tiles, links);
+        }
+
+        return tiles.size();
+    }
+
+    private void walk(String current, Set<String> routes, Set<List<Integer>> tiles, Map<String, Set<String>> links) {
+        if (current != null && !routes.contains(current)) {
+            routes.add(current);
+            String[] parts = current.split(",");
+            tiles.add(Arrays.asList(Integer.parseInt(parts[0]), Integer.parseInt(parts[1])));
+
+            if (links.containsKey(current)) {
+                for (String prev : links.get(current)) {
+                    walk(prev, routes, tiles, links);
+                }
+            }
+        }
+    }
+
+
+    static class Node implements Comparable<Node> {
+        int cost, y, x, direction;
+        String prev;
+
+        Node(int cost, int y, int x, int direction) {
+            this(cost, y, x, direction, null);
+        }
+
+        Node(int cost, int y, int x, int direction, String prev) {
+            this.cost = cost;
+            this.y = y;
+            this.x = x;
+            this.direction = direction;
+            this.prev = prev;
+        }
+
+        @Override
+        public int compareTo(Node other) {
+            return Integer.compare(this.cost, other.cost);
+        }
+    }
+
+
+    private void parseInput() {
+        for (int y = 0; y < inputLines.size(); y++) {
+            String line = inputLines.get(y);
+            for (int x = 0; x < line.length(); x++) {
+                char c = line.charAt(x);
+                switch (c) {
+                    case '#':
+                        walls.add(Arrays.asList(y, x));
+                        break;
+                    case 'S':
+                        source[0] = y;
+                        source[1] = x;
+                        break;
+                    case 'E':
+                        target[0] = y;
+                        target[1] = x;
+                        break;
+                }
+            }
+        }
+
     }
 
     @Test
@@ -134,7 +183,36 @@ public class Day16 {
             #.....#...#.#.#
             #.###.#.#.#.#.#
             #S..#.....#...#
-            ###############        
+            ###############
+            """.split("\n")));
+
+        part1();
+        part2();
+
+    }
+
+    @Test
+    void test_2() {
+
+        setInputLines(List.of(
+            """
+#################
+#...#...#...#..E#
+#.#.#.#.#.#.#.#.#
+#.#.#.#...#...#.#
+#.#.#.#.###.#.#.#
+#...#.#.#.....#.#
+#.#.#.#.#.#####.#
+#.#...#.#.#.....#
+#.#.#####.#.###.#
+#.#.#.......#...#
+#.#.###.#####.###
+#.#.#...#.....#.#
+#.#.#.#####.###.#
+#.#.#.........#.#
+#.#.#.#########.#
+#S#.............#
+#################
             """.split("\n")));
 
         part1();
