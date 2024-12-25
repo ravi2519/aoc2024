@@ -20,8 +20,6 @@ public class Day25 {
     public void part1() {
         log.info("Day25, Part 01");
         parseInput();
-        log.info("Locks: {}", locks);
-        log.info("Keys: {}", keys);
 
         var pairs = 0;
         for(var lock : locks) {
